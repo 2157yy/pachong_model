@@ -81,3 +81,6 @@ python scripts/predict_quality.py \
 - `scripts/build_dataset.py`: 预处理与伪标签
 - `scripts/train_classifier.py`: 训练入口
 - `scripts/predict_quality.py`: 预测与排序
+- `scripts/bootstrap_server.sh`: 服务器初始化
+- `scripts/run_server_pipeline.sh`: 服务器整条流水线
+- `configs/config.server.yaml`: 服务器推荐配置

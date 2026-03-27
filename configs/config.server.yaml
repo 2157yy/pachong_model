@@ -1,0 +1,77 @@
+# 服务器推荐配置
+
+crawler:
+  headless: true
+  proxy: null
+  user_agent: null
+  locale: "zh-CN"
+  timezone_id: "Asia/Shanghai"
+  navigation_timeout_ms: 45000
+  viewport_width: 1440
+  viewport_height: 960
+  max_comments: 200
+  scroll_times: 10
+  request_delay: 2.0
+  request_delay_jitter: 1.0
+  export_formats: ["json", "jsonl", "csv"]
+
+  douyin:
+    enabled: true
+    output_prefix: "douyin"
+    storage_state: "data/browser_state/douyin_state.json"
+    save_storage_state: null
+    cookies_file: null
+
+  xiaohongshu:
+    enabled: true
+    output_prefix: "xiaohongshu"
+    storage_state: "data/browser_state/xiaohongshu_state.json"
+    save_storage_state: null
+    cookies_file: null
+
+preprocess:
+  min_length: 10
+  max_length: 512
+  min_likes: 0
+  train_ratio: 0.8
+  val_ratio: 0.1
+  test_ratio: 0.1
+  shuffle: true
+  output_prefix: "dataset"
+
+labeler:
+  like_threshold_high: 1000
+  like_threshold_low: 100
+  collect_threshold_high: 500
+  collect_threshold_low: 50
+  comment_threshold_high: 100
+  comment_threshold_low: 20
+  content_length_high: 200
+  content_length_low: 50
+  engagement_rate_high: 0.05
+  engagement_rate_low: 0.01
+
+model:
+  name: "ernie-3.0-base"
+  num_labels: 3
+  max_length: 512
+  backend: "paddle"
+  learning_rate: 2.0e-5
+  batch_size: 32
+  epochs: 5
+  warmup_ratio: 0.1
+  device: "iluvatar_gpu:0"
+  output_dir: "checkpoints"
+  save_name: "best_model"
+
+logging:
+  level: "INFO"
+  rotation: "1 day"
+  retention: "7 days"
+
+paths:
+  data_dir: "data"
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  checkpoint_dir: "checkpoints"
+  log_dir: "logs"
