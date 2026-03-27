@@ -36,6 +36,12 @@ crawler:
     save_storage_state: null
     cookies_file: null
 
+discovery:
+  keyword: null
+  max_results_per_platform: 20
+  scroll_times: 8
+  output_file: "urls.txt"
+
 
 # ==================== 数据预处理配置 ====================
 preprocess:

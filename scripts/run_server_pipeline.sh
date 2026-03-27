@@ -5,12 +5,14 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT_DIR"
 
 CONFIG_FILE="${1:-configs/config.server.yaml}"
-URL_FILE="${2:-urls.txt}"
+KEYWORD="${2:-自嘲熊}"
+URL_FILE="${3:-urls.txt}"
 
 python3 scripts/run_crawler.py \
   --config "$CONFIG_FILE" \
   --platform auto \
-  --url-file "$URL_FILE"
+  --keyword "$KEYWORD" \
+  --save-url-file "$URL_FILE"
 
 python3 scripts/build_dataset.py \
   --config "$CONFIG_FILE"

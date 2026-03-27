@@ -15,7 +15,7 @@ if str(ROOT) not in sys.path:
 
 from src.crawler.douyin import DouyinCrawler
 from src.crawler.xiaohongshu import XiaohongshuCrawler
-from src.utils.common import detect_platform, read_url_inputs
+from src.utils.common import detect_platform, read_url_inputs, write_url_file
 from src.utils.config import deep_update, load_config
 from src.utils.logger import logger
 
@@ -32,6 +32,11 @@ def build_args() -> argparse.Namespace:
     parser.add_argument("--platform", choices=["auto", "douyin", "xiaohongshu"], default="auto", help="平台类型")
     parser.add_argument("--url", help="单个目标链接")
     parser.add_argument("--url-file", help="批量 URL 文件，每行一个")
+    parser.add_argument("--keyword", help="按关键词自动发现作品链接")
+    parser.add_argument("--discovery-limit", type=int, help="每个平台发现的作品链接数量")
+    parser.add_argument("--discovery-scroll-times", type=int, help="关键词搜索页滚动次数")
+    parser.add_argument("--save-url-file", help="把自动发现到的 URL 写入文件，例如 urls.txt")
+    parser.add_argument("--discover-only", action="store_true", help="只发现 URL，不抓取评论")
     parser.add_argument("--headless", action="store_true", help="启用无头模式")
     parser.add_argument("--max-comments", type=int, help="单链接最大评论数")
     parser.add_argument("--scroll-times", type=int, help="滚动次数")
@@ -56,13 +61,37 @@ def resolve_platform_groups(urls: List[str], platform: str) -> Dict[str, List[st
     return groups
 
 
+def build_crawler(platform: str, config: dict, args: argparse.Namespace):
+    crawler_config = config.get("crawler", {})
+    paths_config = config.get("paths", {})
+    platform_config = crawler_config.get(platform, {})
+    crawler_cls = CRAWLER_MAP[platform]
+    return crawler_cls(
+        headless=bool(crawler_config.get("headless", True)),
+        proxy=crawler_config.get("proxy"),
+        user_agent=crawler_config.get("user_agent"),
+        data_dir=paths_config.get("raw_dir", "data/raw"),
+        log_dir=paths_config.get("log_dir", "logs"),
+        request_delay=float(crawler_config.get("request_delay", 2.0)),
+        request_delay_jitter=float(crawler_config.get("request_delay_jitter", 1.0)),
+        navigation_timeout_ms=int(crawler_config.get("navigation_timeout_ms", 45000)),
+        locale=crawler_config.get("locale", "zh-CN"),
+        timezone_id=crawler_config.get("timezone_id", "Asia/Shanghai"),
+        storage_state=args.storage_state or platform_config.get("storage_state"),
+        save_storage_state=args.save_storage_state or platform_config.get("save_storage_state"),
+        cookies_file=args.cookies_file or platform_config.get("cookies_file"),
+        viewport_width=int(crawler_config.get("viewport_width", 1440)),
+        viewport_height=int(crawler_config.get("viewport_height", 960)),
+        log_level=config.get("logging", {}).get("level", "INFO"),
+    )
+
+
 def main() -> int:
     args = build_args()
     config = load_config(args.config)
+    discovery_config = config.get("discovery", {})
 
     urls = read_url_inputs(args.url, args.url_file)
-    if not urls:
-        raise SystemExit("请通过 --url 或 --url-file 提供目标链接")
 
     overrides = {
         "crawler": {
@@ -83,31 +112,43 @@ def main() -> int:
     paths_config = config.get("paths", {})
     formats = args.formats or crawler_config.get("export_formats", ["json", "jsonl", "csv"])
 
+    keyword = args.keyword or discovery_config.get("keyword")
+    discovery_limit = int(args.discovery_limit or discovery_config.get("max_results_per_platform", 20))
+    discovery_scroll_times = int(args.discovery_scroll_times or discovery_config.get("scroll_times", 8))
+    save_url_file = args.save_url_file or discovery_config.get("output_file")
+
+    if not urls and keyword:
+        platforms = ["douyin", "xiaohongshu"] if args.platform == "auto" else [args.platform]
+        discovered_urls: List[str] = []
+        for platform in platforms:
+            crawler = build_crawler(platform, config, args)
+            with crawler:
+                platform_urls = crawler.discover_urls(
+                    keyword=keyword,
+                    max_results=discovery_limit,
+                    scroll_times=discovery_scroll_times,
+                )
+                discovered_urls.extend(platform_urls)
+
+        urls = discovered_urls
+        if save_url_file:
+            path = write_url_file(urls, save_url_file)
+            logger.info("自动发现的 URL 已写入 {}", path)
+
+        if args.discover_only:
+            for item in urls:
+                print(item)
+            return 0
+
+    if not urls:
+        raise SystemExit("请通过 --url / --url-file / --keyword 提供目标链接或搜索词")
+
     groups = resolve_platform_groups(urls, args.platform)
     all_paths: Dict[str, str] = {}
 
     for platform, group_urls in groups.items():
-        crawler_cls = CRAWLER_MAP[platform]
         platform_config = crawler_config.get(platform, {})
-        raw_dir = paths_config.get("raw_dir", "data/raw")
-        crawler = crawler_cls(
-            headless=bool(crawler_config.get("headless", True)),
-            proxy=crawler_config.get("proxy"),
-            user_agent=crawler_config.get("user_agent"),
-            data_dir=raw_dir,
-            log_dir=paths_config.get("log_dir", "logs"),
-            request_delay=float(crawler_config.get("request_delay", 2.0)),
-            request_delay_jitter=float(crawler_config.get("request_delay_jitter", 1.0)),
-            navigation_timeout_ms=int(crawler_config.get("navigation_timeout_ms", 45000)),
-            locale=crawler_config.get("locale", "zh-CN"),
-            timezone_id=crawler_config.get("timezone_id", "Asia/Shanghai"),
-            storage_state=args.storage_state or platform_config.get("storage_state"),
-            save_storage_state=args.save_storage_state or platform_config.get("save_storage_state"),
-            cookies_file=args.cookies_file or platform_config.get("cookies_file"),
-            viewport_width=int(crawler_config.get("viewport_width", 1440)),
-            viewport_height=int(crawler_config.get("viewport_height", 960)),
-            log_level=config.get("logging", {}).get("level", "INFO"),
-        )
+        crawler = build_crawler(platform, config, args)
 
         with crawler:
             records = crawler.crawl_multiple(

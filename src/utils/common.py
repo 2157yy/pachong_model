@@ -9,6 +9,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Sequence
+from urllib.parse import quote
 
 
 def ensure_directory(path: str | Path) -> Path:
@@ -100,6 +101,26 @@ def read_url_inputs(url: str | None = None, url_file: str | None = None) -> List
             seen.add(item)
             deduped.append(item)
     return deduped
+
+
+def write_url_file(urls: Sequence[str], path: str | Path) -> str:
+    target = Path(path)
+    ensure_directory(target.parent)
+    deduped: List[str] = []
+    seen = set()
+    for item in urls:
+        normalized = str(item).strip()
+        if normalized and normalized not in seen:
+            seen.add(normalized)
+            deduped.append(normalized)
+    with target.open("w", encoding="utf-8") as file:
+        for item in deduped:
+            file.write(f"{item}\n")
+    return str(target)
+
+
+def quote_keyword(keyword: str) -> str:
+    return quote(keyword, safe="")
 
 
 def detect_platform(url: str) -> str:

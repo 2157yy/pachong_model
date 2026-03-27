@@ -20,14 +20,20 @@ crawler:
     output_prefix: "douyin"
     storage_state: "data/browser_state/douyin_state.json"
     save_storage_state: null
-    cookies_file: null
+    cookies_file: "cookie/douyincookies.json"
 
   xiaohongshu:
     enabled: true
     output_prefix: "xiaohongshu"
     storage_state: "data/browser_state/xiaohongshu_state.json"
     save_storage_state: null
-    cookies_file: null
+    cookies_file: "cookie/xiaohongshucookies.json"
+
+discovery:
+  keyword: "自嘲熊"
+  max_results_per_platform: 20
+  scroll_times: 8
+  output_file: "urls.txt"
 
 preprocess:
   min_length: 10

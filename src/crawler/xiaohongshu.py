@@ -3,10 +3,11 @@
 """
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, List
 
 from src.crawler.base import BaseCrawler
-from src.utils.common import format_timestamp, parse_number, safe_text_candidates
+from src.utils.common import format_timestamp, parse_number, quote_keyword, safe_text_candidates
 from src.utils.logger import logger
 
 
@@ -36,6 +37,15 @@ class XiaohongshuCrawler(BaseCrawler):
         '[class*="close"]',
         '[class*="Close"]',
     )
+
+    def discover_urls(self, keyword: str, max_results: int = 20, scroll_times: int = 8) -> List[str]:
+        search_url = f"https://www.xiaohongshu.com/search_result?keyword={quote_keyword(keyword)}&source=web_explore_feed"
+        self.goto(search_url)
+        self.close_overlays(self.POPUP_SELECTORS)
+        self._scroll_for_discovery(scroll_times)
+        urls = self._extract_discovery_urls(max_results)
+        logger.info("小红书关键词 {} 发现 {} 条作品链接", keyword, len(urls))
+        return urls
 
     def crawl(self, url: str, max_comments: int = 100, scroll_times: int = 8) -> Dict[str, Any]:
         self.goto(url)
@@ -288,3 +298,59 @@ class XiaohongshuCrawler(BaseCrawler):
 
         logger.info("小红书去重后评论数: {}", len(deduped))
         return deduped
+
+    def _scroll_for_discovery(self, scroll_times: int) -> None:
+        if not self.page:
+            return
+        for _ in range(scroll_times):
+            self.page.mouse.wheel(0, 1200)
+            self.random_sleep(1.0, 1.8)
+
+    def _extract_discovery_urls(self, max_results: int) -> List[str]:
+        if not self.page:
+            return []
+
+        raw_links = self.page.evaluate(
+            """
+            () => Array.from(document.querySelectorAll('a[href]'))
+                .map((node) => node.href || node.getAttribute('href') || '')
+                .filter(Boolean)
+            """
+        )
+
+        urls: List[str] = []
+        seen = set()
+        for href in raw_links:
+            normalized = self._normalize_discovery_url(href)
+            if not normalized or normalized in seen:
+                continue
+            seen.add(normalized)
+            urls.append(normalized)
+            if len(urls) >= max_results:
+                break
+        return urls
+
+    def _normalize_discovery_url(self, href: str) -> str:
+        if not href:
+            return ""
+        href = href.strip()
+        if href.startswith("//"):
+            href = f"https:{href}"
+        if href.startswith("/"):
+            href = f"https://www.xiaohongshu.com{href}"
+        if "xiaohongshu.com" not in href:
+            return ""
+
+        explore_match = re.search(r"https?://www\.xiaohongshu\.com/explore/([A-Za-z0-9]+)", href)
+        if explore_match:
+            return f"https://www.xiaohongshu.com/explore/{explore_match.group(1)}"
+
+        dis_match = re.search(r"https?://www\.xiaohongshu\.com/discovery/item/([A-Za-z0-9]+)", href)
+        if dis_match:
+            return f"https://www.xiaohongshu.com/explore/{dis_match.group(1)}"
+
+        note_match = re.search(r"noteId=([A-Za-z0-9]+)", href)
+        if note_match:
+            return f"https://www.xiaohongshu.com/explore/{note_match.group(1)}"
+
+        return ""

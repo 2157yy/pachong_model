@@ -123,6 +123,18 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(crawler._extract_post_from_payload(payload)["post_id"], "n1")
         self.assertEqual(len(crawler._extract_comments_from_payload(payload)), 1)
 
+    def test_discovery_url_normalize(self) -> None:
+        douyin = DouyinCrawler()
+        self.assertEqual(
+            douyin._normalize_discovery_url("https://www.douyin.com/discover?modal_id=123456789"),
+            "https://www.douyin.com/video/123456789",
+        )
+        xhs = XiaohongshuCrawler()
+        self.assertEqual(
+            xhs._normalize_discovery_url("https://www.xiaohongshu.com/discovery/item/abcdef123456"),
+            "https://www.xiaohongshu.com/explore/abcdef123456",
+        )
+
     def test_sklearn_trainer(self) -> None:
         train_data = [
             {"text": "互动很高 内容很好", "label_id": 2},

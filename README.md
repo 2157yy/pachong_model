@@ -28,6 +28,16 @@ python scripts/run_crawler.py \
   --platform auto
 ```
 
+按关键词自动发现真实作品链接并直接抓取：
+
+```bash
+python scripts/run_crawler.py \
+  --config configs/config.server.yaml \
+  --platform auto \
+  --keyword "自嘲熊" \
+  --save-url-file urls.txt
+```
+
 如需携带登录态，把浏览器导出的 `storage_state` 或 cookies 文件填到 `configs/config.yaml`，或者命令行传：
 
 ```bash

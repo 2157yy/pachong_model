@@ -1,0 +1,162 @@
+[
+  {
+    "name": "acw_tc",
+    "value": "0a00dcd917746036825523955e37feb0136149808aec41644f1e5467e00019",
+    "domain": "www.xiaohongshu.com",
+    "path": "/",
+    "expires": 1774605482.525282,
+    "httpOnly": true,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "abRequestId",
+    "value": "371e7ce4-2473-5267-8324-ee1885a0fe9e",
+    "domain": ".xiaohongshu.com",
+    "path": "/",
+    "expires": 1806139682.525351,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "ets",
+    "value": "1774603686348",
+    "domain": ".xiaohongshu.com",
+    "path": "/",
+    "expires": 1777195686.348729,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "webBuild",
+    "value": "6.2.2",
+    "domain": ".xiaohongshu.com",
+    "path": "/",
+    "expires": -1,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "xsecappid",
+    "value": "xhs-pc-web",
+    "domain": ".xiaohongshu.com",
+    "path": "/",
+    "expires": 1806139688,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "loadts",
+    "value": "1774603688379",
+    "domain": ".xiaohongshu.com",
+    "path": "/",
+    "expires": 1806139688,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "a1",
+    "value": "19d2e9f59c49ukjwbruef8dukhvghcnefysudx6u430000408111",
+    "domain": ".xiaohongshu.com",
+    "path": "/",
+    "expires": 1806139688,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "webId",
+    "value": "17018f8dcc3228bc0b697dbbde4971db",
+    "domain": ".xiaohongshu.com",
+    "path": "/",
+    "expires": 1806139688,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "acw_tc",
+    "value": "0a50895117746036889734855ed32e04364c77cf153f27d10401a8622e1113",
+    "domain": "edith.xiaohongshu.com",
+    "path": "/",
+    "expires": 1774605488.846124,
+    "httpOnly": true,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "websectiga",
+    "value": "3fff3a6f9f07284b62c0f2ebf91a3b10193175c06g4f71492b60e056edcdebb2",
+    "domain": ".xiaohongshu.com",
+    "path": "/",
+    "expires": 1774862888,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "sec_poison_id",
+    "value": "bd9a6a43-26a7-43bf-84be-f263624ab2dc",
+    "domain": ".xiaohongshu.com",
+    "path": "/",
+    "expires": 1774604293,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "acw_tc",
+    "value": "0ad6291d17746036921921506e370028c6263edd6a1c6f8ce40459e087dc5a",
+    "domain": "so.xiaohongshu.com",
+    "path": "/",
+    "expires": 1774605492.047452,
+    "httpOnly": true,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "gid",
+    "value": "yjfJdjiWDKi8yjfJdji2jvCKS4j7TVEDF7diM74Yf7Txh7q8kxSIdf88848Yyyy8DDifD8fj",
+    "domain": ".xiaohongshu.com",
+    "path": "/",
+    "expires": 1809163696.864054,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "web_session",
+    "value": "040069b935c85b29c68ba105f33b4b1f280ff2",
+    "domain": ".xiaohongshu.com",
+    "path": "/",
+    "expires": 1806139720.187374,
+    "httpOnly": true,
+    "secure": true,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "id_token",
+    "value": "VjEAAGB/Yk8Pxot3tq/MwciyTiE75JAV7b/nD/7shFbCDgd33EX6ODrTChyBIDG/1qBVcVT1+QaZUzKqIxuk1W56QXpIgG5AzYTjyLilY1kZRO2tPG9aU/r2fIxNGlHz+0VrkVw+",
+    "domain": ".xiaohongshu.com",
+    "path": "/",
+    "expires": 1806139720.1875,
+    "httpOnly": true,
+    "secure": true,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "unread",
+    "value": "{%22ub%22:%2269c3d0890000000023025ff9%22%2C%22ue%22:%2269c566e200000000220259de%22%2C%22uc%22:54}",
+    "domain": ".xiaohongshu.com",
+    "path": "/",
+    "expires": -1,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  }
+]
