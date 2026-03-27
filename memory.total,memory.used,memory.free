@@ -1,0 +1,74 @@
+
+==============IXSMI LOG==============
+Timestamp                                       : Fri Mar 27 10:52:53 2026
+Driver Version                                  : 4.3.8
+CUDA Version                                    : 10.2
+
+Attached GPU device count                       : 1
+GPU 00000000:1A:00.0
+    Product Name                                : Iluvatar BI-V150S
+    Serial Number                               : 2518012837215E
+    GPU UUID                                    : GPU-da6d167f-927f-518f-8f27-c9d9d56e3e68
+    Minor Number                                : 4
+    MultiGPU Board                              : Yes
+    Board ID                                    : 0x1900
+    Board Part Number                           : BI-V150-01
+    GPU Position                                : 1
+    GPU Virtualization Mode
+        Virtualization Mode                     : None
+        Host VGPU Mode                          : N/A
+    PCI
+        Bus                                     : 0x1A
+        Device                                  : 0x00
+        Domain                                  : 0x0000
+        Device Id                               : 0x000F1E3E
+        Bus Id                                  : 00000000:1A:00.0
+        Sub System Id                           : 0x00010000
+        GPU Link Info                           
+            PCIe Generation                     
+                Max                             : 4
+                Current                         : 4
+            Link Width                          
+                Max                             : 16x
+                Current                         : 16x
+        Tx Throughput                           : 0 KB/s
+        Rx Throughput                           : 0 KB/s
+    Fan Speed                                   : N/A
+    Memory Usage
+        Total                                   : 32768 MiB
+        Used                                    : 64 MiB
+        Free                                    : 32704 MiB
+    Utilization
+        Gpu                                     : 0 %
+        Memory                                  : 1 %
+        Encoder                                 : 0 %
+        Decoder                                 : 0 %
+    Ecc Mode
+        Current                                 : Enabled
+        Pending                                 : N/A
+    ECC Errors
+        Single Bit ECC                          : 0
+        Double Bit ECC                          : 0
+    Temperature
+        GPU Current Temp                        : 38 C
+        GPU Shutdown Temp                       : 105 C
+        GPU Slowdown Temp                       : 100 C
+        GPU Max Operating Temp                  : 95 C
+        Memory Current Temp                     : 38 C
+    Power Readings
+        GPU Power Draw                          : 12 W
+        Current GPU Power Limit                 : 205 W
+        Default GPU Power Limit                 : 205 W
+        Board Power Draw                        : 52 W
+        Current Board Power Limit               : 450 W
+        Default Board Power Limit               : 450 W
+    Clocks
+        SM                                      : 500 MHz
+        Memory                                  : 1600 MHz
+    Max Clocks
+        SM                                      : 1750 MHz
+        Memory                                  : 1600 MHz
+    Compute Mode                                : Default
+    Performance State                           : P0
+    Processes                                   : None
+
