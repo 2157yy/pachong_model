@@ -1,58 +1,19 @@
 """
-模型训练器
-负责模型训练、评估、保存
+文本质量分类训练器。
 """
+from __future__ import annotations
+
 import json
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence
 
-import paddle
-from paddle.io import Dataset, DataLoader
-from paddlenlp.transformers import ErnieTokenizer, ErnieForSequenceClassification
-from paddlenlp.data import Stack, Tuple, Pad
-from paddlenlp.metrics import Accuracy, Precision, Recall, F1
-from loguru import logger
-
-
-class TextClassificationDataset(Dataset):
-    """文本分类数据集"""
-    
-    def __init__(self, data: List[Dict[str, Any]], tokenizer, max_length: int = 512):
-        self.data = data
-        self.tokenizer = tokenizer
-        self.max_length = max_length
-    
-    def __len__(self):
-        return len(self.data)
-    
-    def __getitem__(self, idx):
-        item = self.data[idx]
-        text = item.get('text', '') or item.get('dialogue', [''])[0] or ''
-        label = item.get('label_id', item.get('label', 0))
-        
-        # 标签映射
-        if isinstance(label, str):
-            label_map = {'low': 0, 'medium': 1, 'high': 2}
-            label = label_map.get(label, 0)
-        
-        # 分词
-        encoded = self.tokenizer(
-            text,
-            padding=False,
-            truncation=True,
-            max_length=self.max_length
-        )
-        
-        return {
-            'input_ids': encoded['input_ids'],
-            'token_type_ids': encoded['token_type_ids'],
-            'labels': label
-        }
+from src.model.classifier import QualityClassifier
+from src.utils.logger import logger
 
 
 class Trainer:
-    """模型训练器"""
-    
+    """支持 Paddle/sklearn 的统一训练接口。"""
+
     def __init__(
         self,
         model_name: str = "ernie-3.0-base",
@@ -62,23 +23,10 @@ class Trainer:
         batch_size: int = 32,
         epochs: int = 5,
         warmup_ratio: float = 0.1,
-        device: str = "iluvatar_gpu:0",
-        output_dir: str = "checkpoints"
+        device: str = "cpu",
+        output_dir: str = "checkpoints",
+        backend: str = "auto",
     ):
-        """
-        初始化训练器
-        
-        Args:
-            model_name: 预训练模型名称
-            num_labels: 分类数量
-            max_length: 最大序列长度
-            learning_rate: 学习率
-            batch_size: 批次大小
-            epochs: 训练轮数
-            warmup_ratio: 预热比例
-            device: 设备类型
-            output_dir: 输出目录
-        """
         self.model_name = model_name
         self.num_labels = num_labels
         self.max_length = max_length
@@ -86,230 +34,270 @@ class Trainer:
         self.batch_size = batch_size
         self.epochs = epochs
         self.warmup_ratio = warmup_ratio
+        self.device = device
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        
-        # 设置设备
+        self.backend = self._resolve_backend(backend)
+
+    def _resolve_backend(self, backend: str) -> str:
+        if backend != "auto":
+            return backend
         try:
-            paddle.set_device(device)
-            self.device = device
-            logger.info(f"使用设备：{device}")
-        except ValueError:
-            paddle.set_device("cpu")
-            self.device = "cpu"
-            logger.warning(f"设备 {device} 不可用，使用 CPU")
-        
-        # 加载模型和分词器
-        logger.info(f"加载模型：{model_name}")
-        self.tokenizer = ErnieTokenizer.from_pretrained(model_name)
-        self.model = ErnieForSequenceClassification.from_pretrained(
-            model_name,
-            num_labels=num_labels
-        )
-        
-        # 优化器
-        self.optimizer = paddle.optimizer.AdamW(
-            learning_rate=learning_rate,
-            parameters=self.model.parameters()
-        )
-        
-        # 损失函数
-        self.criterion = paddle.nn.loss.CrossEntropyLoss()
-        
-        logger.info("训练器初始化完成")
-    
-    def create_dataloader(
-        self,
-        data: List[Dict[str, Any]],
-        shuffle: bool = False
-    ) -> DataLoader:
-        """创建数据加载器"""
-        dataset = TextClassificationDataset(data, self.tokenizer, self.max_length)
-        
-        batch_sampler = paddle.io.DistributedBatchSampler(
-            dataset,
-            batch_size=self.batch_size,
-            shuffle=shuffle
-        )
-        
-        dataloader = DataLoader(
-            dataset,
-            batch_sampler=batch_sampler,
-            collate_fn=self._collate_fn
-        )
-        
-        return dataloader
-    
-    def _collate_fn(self, batch):
-        """批次数据处理"""
-        input_ids = Stack()(x['input_ids'] for x in batch)
-        token_type_ids = Stack()(x['token_type_ids'] for x in batch)
-        labels = Stack()(x['labels'] for x in batch)
-        
-        return input_ids, token_type_ids, labels
-    
+            import paddlenlp  # noqa: F401
+            import paddle  # noqa: F401
+            return "paddle"
+        except Exception:
+            return "sklearn"
+
+    def load_jsonl(self, filepath: str | Path) -> List[Dict[str, Any]]:
+        rows: List[Dict[str, Any]] = []
+        with Path(filepath).open("r", encoding="utf-8") as file:
+            for line in file:
+                line = line.strip()
+                if line:
+                    rows.append(json.loads(line))
+        return rows
+
     def train(
         self,
-        train_data: List[Dict[str, Any]],
-        val_data: List[Dict[str, Any]],
-        save_name: str = "best_model"
+        train_data: Sequence[Dict[str, Any]],
+        val_data: Sequence[Dict[str, Any]],
+        save_name: str = "best_model",
+        test_data: Optional[Sequence[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
-        """
-        训练模型
-        
-        Args:
-            train_data: 训练数据
-            val_data: 验证数据
-            save_name: 保存模型名称
-            
-        Returns:
-            训练历史记录
-        """
-        # 创建数据加载器
-        train_loader = self.create_dataloader(train_data, shuffle=True)
-        val_loader = self.create_dataloader(val_data, shuffle=False)
-        
-        # 计算步数
-        num_train_steps = len(train_loader) * self.epochs
-        num_warmup_steps = int(num_train_steps * self.warmup_ratio)
-        
-        # 学习率调度器
-        lr_scheduler = paddle.optimizer.lr.LinearWarmup(
-            learning_rate=self.learning_rate,
-            warmup_steps=num_warmup_steps,
-            start_lr=0.0,
-            end_lr=self.learning_rate,
-            total_steps=num_train_steps
-        )
-        self.optimizer.set_lr_scheduler(lr_scheduler)
-        
-        # 训练指标
-        best_f1 = 0.0
-        history = {'train_loss': [], 'val_f1': [], 'val_accuracy': []}
-        
-        logger.info(f"开始训练，共 {self.epochs} 轮，{num_train_steps} 步")
-        
-        for epoch in range(self.epochs):
-            # 训练
-            self.model.train()
-            train_loss_sum = 0.0
-            
-            for step, (input_ids, token_type_ids, labels) in enumerate(train_loader):
-                # 前向传播
-                outputs = self.model(
-                    input_ids=input_ids,
-                    token_type_ids=token_type_ids
-                )
-                logits = outputs[0]
-                
-                # 计算损失
-                loss = self.criterion(logits, labels)
-                
-                # 反向传播
-                loss.backward()
-                self.optimizer.step()
-                self.optimizer.clear_grad()
-                
-                train_loss_sum += loss.item()
-                
-                # 打印进度
-                if (step + 1) % 50 == 0:
-                    avg_loss = train_loss_sum / (step + 1)
-                    logger.info(f"Epoch {epoch + 1}/{self.epochs}, Step {step + 1}, Loss: {avg_loss:.4f}")
-            
-            # 平均训练损失
-            avg_train_loss = train_loss_sum / len(train_loader)
-            history['train_loss'].append(avg_train_loss)
-            
-            # 验证
-            val_metrics = self.evaluate(val_loader)
-            history['val_f1'].append(val_metrics['f1'])
-            history['val_accuracy'].append(val_metrics['accuracy'])
-            
-            logger.info(
-                f"Epoch {epoch + 1}/{self.epochs} - "
-                f"Train Loss: {avg_train_loss:.4f}, "
-                f"Val Accuracy: {val_metrics['accuracy']:.4f}, "
-                f"Val F1: {val_metrics['f1']:.4f}"
-            )
-            
-            # 保存最佳模型
-            if val_metrics['f1'] > best_f1:
-                best_f1 = val_metrics['f1']
-                self.save(f"{self.output_dir}/{save_name}")
-                logger.info(f"保存最佳模型 (F1={best_f1:.4f})")
-        
-        # 保存训练历史
-        with open(f"{self.output_dir}/training_history.json", "w", encoding="utf-8") as f:
-            json.dump(history, f, indent=2, ensure_ascii=False)
-        
-        logger.info("训练完成")
-        return history
-    
-    def evaluate(self, data_loader: DataLoader) -> Dict[str, float]:
-        """
-        评估模型
-        
-        Returns:
-            评估指标
-        """
-        self.model.eval()
-        
-        correct = 0
-        total = 0
-        all_preds = []
-        all_labels = []
-        
-        with paddle.no_grad():
-            for input_ids, token_type_ids, labels in data_loader:
-                outputs = self.model(
-                    input_ids=input_ids,
-                    token_type_ids=token_type_ids
-                )
-                logits = outputs[0]
-                
-                # 预测
-                preds = paddle.argmax(logits, axis=-1)
-                
-                correct += (preds == labels).sum().item()
-                total += labels.shape[0]
-                
-                all_preds.extend(preds.tolist())
-                all_labels.extend(labels.tolist())
-        
-        # 计算指标
-        accuracy = correct / total if total > 0 else 0
-        
-        # F1 分数（宏平均）
-        from sklearn.metrics import f1_score, precision_score, recall_score
-        
-        precision = precision_score(all_labels, all_preds, average='macro', zero_division=0)
-        recall = recall_score(all_labels, all_preds, average='macro', zero_division=0)
-        f1 = f1_score(all_labels, all_preds, average='macro', zero_division=0)
-        
+        if self.backend == "sklearn":
+            return self._train_sklearn(train_data, val_data, save_name, test_data=test_data)
+        if self.backend == "paddle":
+            return self._train_paddle(train_data, val_data, save_name, test_data=test_data)
+        raise RuntimeError(f"不支持的训练后端: {self.backend}")
+
+    def _prepare_xy(self, data: Sequence[Dict[str, Any]]) -> tuple[List[str], List[int]]:
+        texts: List[str] = []
+        labels: List[int] = []
+        for item in data:
+            text = item.get("text") or " [SEP] ".join(item.get("dialogue", [])) or item.get("content", "")
+            if not text:
+                continue
+            label = item.get("label_id", item.get("label", 0))
+            if isinstance(label, str):
+                label = QualityClassifier.LABEL_MAP_REVERSE.get(label, 0)
+            texts.append(text)
+            labels.append(int(label))
+        return texts, labels
+
+    def _metrics(self, y_true: Sequence[int], y_pred: Sequence[int]) -> Dict[str, float]:
+        from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+
         return {
-            'accuracy': accuracy,
-            'precision': precision,
-            'recall': recall,
-            'f1': f1
+            "accuracy": float(accuracy_score(y_true, y_pred)) if y_true else 0.0,
+            "precision": float(precision_score(y_true, y_pred, average="macro", zero_division=0)) if y_true else 0.0,
+            "recall": float(recall_score(y_true, y_pred, average="macro", zero_division=0)) if y_true else 0.0,
+            "f1": float(f1_score(y_true, y_pred, average="macro", zero_division=0)) if y_true else 0.0,
         }
-    
-    def save(self, save_dir: str):
-        """保存模型"""
-        save_path = Path(save_dir)
-        save_path.mkdir(parents=True, exist_ok=True)
-        
-        self.model.save_pretrained(str(save_path))
-        self.tokenizer.save_pretrained(str(save_path))
-        
-        # 保存配置
-        config = {
-            'model_name': self.model_name,
-            'num_labels': self.num_labels,
-            'max_length': self.max_length,
-            'device': self.device
+
+    def _train_sklearn(
+        self,
+        train_data: Sequence[Dict[str, Any]],
+        val_data: Sequence[Dict[str, Any]],
+        save_name: str,
+        test_data: Optional[Sequence[Dict[str, Any]]] = None,
+    ) -> Dict[str, Any]:
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        from sklearn.naive_bayes import MultinomialNB
+        from sklearn.pipeline import Pipeline
+
+        x_train, y_train = self._prepare_xy(train_data)
+        x_val, y_val = self._prepare_xy(val_data)
+        x_test, y_test = self._prepare_xy(test_data or [])
+
+        pipeline = Pipeline(
+            steps=[
+                ("tfidf", TfidfVectorizer(ngram_range=(1, 2), max_features=50000)),
+                (
+                    "clf",
+                    MultinomialNB(),
+                ),
+            ]
+        )
+        pipeline.fit(x_train, y_train)
+
+        val_pred = pipeline.predict(x_val) if x_val else []
+        val_metrics = self._metrics(y_val, val_pred)
+        test_metrics = self._metrics(y_test, pipeline.predict(x_test)) if x_test else {}
+
+        model_path = self.output_dir / save_name
+        classifier = QualityClassifier(
+            model_name=self.model_name,
+            num_labels=self.num_labels,
+            max_length=self.max_length,
+            device=self.device,
+            backend="sklearn",
+        )
+        classifier.pipeline = pipeline
+        classifier.save(str(model_path))
+
+        history = {
+            "backend": "sklearn",
+            "train_size": len(x_train),
+            "val_size": len(x_val),
+            "test_size": len(x_test),
+            "val_metrics": val_metrics,
+            "test_metrics": test_metrics,
         }
-        with open(f"{save_path}/config.json", "w", encoding="utf-8") as f:
-            json.dump(config, f, indent=2, ensure_ascii=False)
-        
-        logger.info(f"模型已保存到 {save_path}")
+        with (model_path / "training_history.json").open("w", encoding="utf-8") as file:
+            json.dump(history, file, ensure_ascii=False, indent=2)
+
+        logger.info("sklearn 训练完成，模型目录: {}", model_path)
+        return history
+
+    def _train_paddle(
+        self,
+        train_data: Sequence[Dict[str, Any]],
+        val_data: Sequence[Dict[str, Any]],
+        save_name: str,
+        test_data: Optional[Sequence[Dict[str, Any]]] = None,
+    ) -> Dict[str, Any]:
+        import numpy as np
+        import paddle
+        from paddle.io import DataLoader, Dataset
+        from paddlenlp.data import Dict as PaddleDict
+        from paddlenlp.data import Pad, Stack
+        from paddlenlp.transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+        try:
+            paddle.set_device(self.device)
+        except Exception:
+            paddle.set_device("cpu")
+            self.device = "cpu"
+
+        tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+        model = AutoModelForSequenceClassification.from_pretrained(self.model_name, num_classes=self.num_labels)
+
+        class SimpleDataset(Dataset):
+            def __init__(self, data: Sequence[Dict[str, Any]]):
+                self.data = list(data)
+
+            def __len__(self) -> int:
+                return len(self.data)
+
+            def __getitem__(self, idx: int) -> Dict[str, Any]:
+                item = self.data[idx]
+                text = item.get("text") or " [SEP] ".join(item.get("dialogue", [])) or item.get("content", "")
+                label = item.get("label_id", item.get("label", 0))
+                if isinstance(label, str):
+                    label = QualityClassifier.LABEL_MAP_REVERSE.get(label, 0)
+                encoded = tokenizer(text=text, max_length=self.max_length, truncation=True)
+                encoded.setdefault("token_type_ids", [0] * len(encoded["input_ids"]))
+                encoded["labels"] = int(label)
+                return encoded
+
+        batchify_fn = PaddleDict(
+            {
+                "input_ids": Pad(axis=0, pad_val=tokenizer.pad_token_id),
+                "token_type_ids": Pad(axis=0, pad_val=getattr(tokenizer, "pad_token_type_id", 0) or 0),
+                "labels": Stack(dtype="int64"),
+            }
+        )
+
+        train_loader = DataLoader(
+            SimpleDataset(train_data),
+            batch_size=self.batch_size,
+            shuffle=True,
+            collate_fn=batchify_fn,
+        )
+        val_loader = DataLoader(
+            SimpleDataset(val_data),
+            batch_size=self.batch_size,
+            shuffle=False,
+            collate_fn=batchify_fn,
+        )
+
+        loss_fn = paddle.nn.CrossEntropyLoss()
+        optimizer = paddle.optimizer.AdamW(
+            learning_rate=self.learning_rate,
+            parameters=model.parameters(),
+        )
+
+        best_f1 = -1.0
+        best_path = self.output_dir / save_name
+
+        for epoch in range(self.epochs):
+            model.train()
+            for batch in train_loader:
+                logits = model(
+                    input_ids=batch["input_ids"],
+                    token_type_ids=batch["token_type_ids"],
+                )[0]
+                loss = loss_fn(logits, batch["labels"])
+                loss.backward()
+                optimizer.step()
+                optimizer.clear_grad()
+
+            metrics = self._evaluate_paddle(model, val_loader)
+            logger.info("Epoch {}/{} val_f1={:.4f}", epoch + 1, self.epochs, metrics["f1"])
+            if metrics["f1"] > best_f1:
+                best_f1 = metrics["f1"]
+                best_path.mkdir(parents=True, exist_ok=True)
+                model.save_pretrained(str(best_path))
+                tokenizer.save_pretrained(str(best_path))
+                with (best_path / "config.json").open("w", encoding="utf-8") as file:
+                    json.dump(
+                        {
+                            "backend": "paddle",
+                            "model_name": self.model_name,
+                            "num_labels": self.num_labels,
+                            "max_length": self.max_length,
+                            "device": self.device,
+                        },
+                        file,
+                        ensure_ascii=False,
+                        indent=2,
+                    )
+
+        history = {
+            "backend": "paddle",
+            "best_val_f1": best_f1,
+            "train_size": len(train_data),
+            "val_size": len(val_data),
+            "test_size": len(test_data or []),
+        }
+        with (best_path / "training_history.json").open("w", encoding="utf-8") as file:
+            json.dump(history, file, ensure_ascii=False, indent=2)
+
+        if test_data:
+            test_loader = DataLoader(
+                SimpleDataset(test_data),
+                batch_size=self.batch_size,
+                shuffle=False,
+                collate_fn=batchify_fn,
+            )
+            history["test_metrics"] = self._evaluate_paddle(model, test_loader)
+
+        logger.info("paddle 训练完成，模型目录: {}", best_path)
+        return history
+
+    def _evaluate_paddle(self, model: Any, data_loader: Any) -> Dict[str, float]:
+        import numpy as np
+        import paddle
+        from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+
+        model.eval()
+        y_true: List[int] = []
+        y_pred: List[int] = []
+        with paddle.no_grad():
+            for batch in data_loader:
+                logits = model(
+                    input_ids=batch["input_ids"],
+                    token_type_ids=batch["token_type_ids"],
+                )[0]
+                preds = np.argmax(logits.numpy(), axis=-1).tolist()
+                labels = batch["labels"].numpy().tolist()
+                y_true.extend(labels)
+                y_pred.extend(preds)
+
+        return {
+            "accuracy": float(accuracy_score(y_true, y_pred)) if y_true else 0.0,
+            "precision": float(precision_score(y_true, y_pred, average="macro", zero_division=0)) if y_true else 0.0,
+            "recall": float(recall_score(y_true, y_pred, average="macro", zero_division=0)) if y_true else 0.0,
+            "f1": float(f1_score(y_true, y_pred, average="macro", zero_division=0)) if y_true else 0.0,
+        }

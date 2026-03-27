@@ -1,5 +1,7 @@
-# 工具模块
-from .preprocess import DataPreprocessor
-from .labeler import PseudoLabeler
+"""工具模块。"""
 
-__all__ = ["DataPreprocessor", "PseudoLabeler"]
+from .config import deep_update, get_nested, load_config
+from .labeler import PseudoLabeler
+from .preprocess import DataPreprocessor
+
+__all__ = ["DataPreprocessor", "PseudoLabeler", "load_config", "deep_update", "get_nested"]

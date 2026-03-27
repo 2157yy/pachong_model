@@ -1,74 +1,13 @@
-# Qwen Code 配置
-.qwen/
-
-# Python
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# 虚拟环境
-venv/
-env/
-ENV/
-.venv
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
+*.pyc
 .DS_Store
-
-# Jupyter Notebook
-.ipynb_checkpoints/
-
-# PaddlePaddle / 模型
-*.pdparams
-*.pdopt
-*.pdmodel
+logs/
 checkpoints/
-*.pth
-
-# 数据文件
 data/raw/*
 data/processed/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
-*.jsonl
-*.parquet
-
-# 日志
-logs/
-*.log
-
-# 环境变量
-.env
-.env.local
-
-# 临时文件
-tmp/
-temp/
-*.tmp
-
-# 爬虫相关
-cookies/
-cache/
-*.sqlite3
+data/browser_state/*
+!data/browser_state/.gitkeep
+data/labels/*
+!data/labels/.gitkeep

@@ -1,4 +1,5 @@
-# 模型模块
+"""模型模块。"""
+
 from .classifier import QualityClassifier
 from .trainer import Trainer
 

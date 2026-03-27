@@ -4,24 +4,37 @@
 # ==================== 爬虫配置 ====================
 crawler:
   # 浏览器配置
-  headless: false           # 是否无头模式（调试时设为 false）
+  headless: true            # 调试时可改为 false
   proxy: null               # 代理地址，如 "http://proxy:port"
   user_agent: null          # User-Agent，null 使用默认
+  locale: "zh-CN"
+  timezone_id: "Asia/Shanghai"
+  navigation_timeout_ms: 45000
+  viewport_width: 1440
+  viewport_height: 960
   
   # 爬取配置
   max_comments: 100         # 单个视频/笔记最大评论数
-  scroll_times: 5           # 页面滚动次数
-  request_delay: 3.0        # 请求间隔（秒）
+  scroll_times: 8           # 页面滚动次数
+  request_delay: 2.0        # 基础请求间隔（秒）
+  request_delay_jitter: 1.0 # 随机抖动（秒）
+  export_formats: ["json", "jsonl", "csv"]
   
   # 抖音配置
   douyin:
     enabled: true
     output_prefix: "douyin"
+    storage_state: null
+    save_storage_state: null
+    cookies_file: null
   
   # 小红书配置
   xiaohongshu:
     enabled: true
     output_prefix: "xiaohongshu"
+    storage_state: null
+    save_storage_state: null
+    cookies_file: null
 
 
 # ==================== 数据预处理配置 ====================
@@ -70,6 +83,7 @@ model:
   name: "ernie-3.0-base"    # 预训练模型名称
   num_labels: 3             # 分类数量（low/medium/high）
   max_length: 512           # 最大序列长度
+  backend: "auto"           # auto / paddle / sklearn
   
   # 训练配置
   learning_rate: 2.0e-5     # 学习率
@@ -78,7 +92,7 @@ model:
   warmup_ratio: 0.1         # 预热比例
   
   # 设备配置
-  device: "iluvatar_gpu:0"  # 训练设备
+  device: "cpu"             # 有 GPU/Paddle 环境时改成 iluvatar_gpu:0 或 gpu:0
   
   # 输出配置
   output_dir: "checkpoints" # 模型保存目录
